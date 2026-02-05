@@ -17,7 +17,7 @@ export const useGestureDetection = () => {
                 const hands = new Hands({
                     locateFile: (file) => {
                         console.log(`Loading MediaPipe file: ${file}`);
-                        return `/ai_models/${file}`;
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
                     }
                 });
 
