@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { FilesetResolver } from '@mediapipe/tasks-vision';
+
 import { Hands, Results } from '@mediapipe/hands';
 import { useGestureStore } from '../store/gestureStore';
 import { GestureState } from '../constants/gestureStates';
@@ -13,13 +13,9 @@ export const useGestureDetection = () => {
     useEffect(() => {
         const initHands = async () => {
             try {
-                await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-                );
-
                 const hands = new Hands({
                     locateFile: (file) => {
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646/${file}`;
                     }
                 });
 
