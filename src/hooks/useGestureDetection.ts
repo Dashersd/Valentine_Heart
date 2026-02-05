@@ -17,7 +17,7 @@ export const useGestureDetection = () => {
                 const hands = new Hands({
                     locateFile: (file) => {
                         console.log(`Loading MediaPipe file: ${file}`);
-                        return `https://unpkg.com/@mediapipe/hands@0.4.1646/${file}`;
+                        return `/mediapipe/${file}`;
                     }
                 });
 
