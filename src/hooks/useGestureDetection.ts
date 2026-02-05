@@ -117,19 +117,24 @@ export const useGestureDetection = () => {
 
     const processVideo = async () => {
         if (videoRef.current && handsRef.current && isReady) {
-            // react-webcam ref points to the component, which has a 'video' property
-            const webcam = videoRef.current as any;
-            const video = webcam.video;
+            try {
+                // react-webcam ref points to the component, which has a 'video' property
+                const webcam = videoRef.current as any;
+                const video = webcam.video;
 
-            if (video && video.readyState === 4) {
-                await handsRef.current.send({ image: video });
+                if (video && video.readyState === 4) {
+                    await handsRef.current.send({ image: video });
+                }
+            } catch (error) {
+                console.error("Error in gesture detection loop:", error);
             }
         }
         requestAnimationFrame(processVideo);
     };
 
     useEffect(() => {
-        if (isReady && videoRef.current) {
+        if (isReady) {
+            console.log("Starting gesture detection loop...");
             const animationId = requestAnimationFrame(processVideo);
             return () => cancelAnimationFrame(animationId);
         }
