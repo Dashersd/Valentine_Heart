@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 
-import { Hands, Results } from '@mediapipe/hands';
+import { Hands, Results, VERSION } from '@mediapipe/hands';
 import { useGestureStore } from '../store/gestureStore';
 import { GestureState } from '../constants/gestureStates';
 
@@ -17,7 +17,7 @@ export const useGestureDetection = () => {
                 const hands = new Hands({
                     locateFile: (file) => {
                         console.log(`Loading MediaPipe file: ${file}`);
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646/${file}`;
+                        return `https://unpkg.com/@mediapipe/hands@${VERSION}/${file}`;
                     }
                 });
 
@@ -29,6 +29,9 @@ export const useGestureDetection = () => {
                 });
 
                 hands.onResults(onResults);
+
+                await hands.initialize();
+
                 handsRef.current = hands;
                 setIsReady(true);
                 console.log("MediaPipe Hands initialized and ready.");
