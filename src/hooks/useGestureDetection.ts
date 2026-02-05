@@ -12,10 +12,12 @@ export const useGestureDetection = () => {
 
     useEffect(() => {
         const initHands = async () => {
+            console.log("Initializing MediaPipe Hands...");
             try {
                 const hands = new Hands({
                     locateFile: (file) => {
-                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646/${file}`;
+                        console.log(`Loading MediaPipe file: ${file}`);
+                        return `https://unpkg.com/@mediapipe/hands@0.4.1646/${file}`;
                     }
                 });
 
@@ -29,6 +31,7 @@ export const useGestureDetection = () => {
                 hands.onResults(onResults);
                 handsRef.current = hands;
                 setIsReady(true);
+                console.log("MediaPipe Hands initialized and ready.");
             } catch (error) {
                 console.error("Error initializing MediaPipe Hands:", error);
             }
