@@ -1,49 +1,18 @@
-import { useRef, useState, useEffect } from 'react';
-
-import { Hands, Results, VERSION } from '@mediapipe/hands';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { Hands, Results } from '@mediapipe/hands';
 import { useGestureStore } from '../store/gestureStore';
 import { GestureState } from '../constants/gestureStates';
 
 export const useGestureDetection = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const handsRef = useRef<Hands | null>(null);
+    const initializationRef = useRef(false);
+    const animationIdRef = useRef<number | null>(null);
     const { setGesture, setHandDetected } = useGestureStore();
     const [isReady, setIsReady] = useState(false);
 
-    useEffect(() => {
-        const initHands = async () => {
-            console.log("Initializing MediaPipe Hands...");
-            try {
-                const hands = new Hands({
-                    locateFile: (file) => {
-                        console.log(`Loading MediaPipe file: ${file}`);
-                        return `https://unpkg.com/@mediapipe/hands@${VERSION}/${file}`;
-                    }
-                });
-
-                hands.setOptions({
-                    maxNumHands: 1,
-                    modelComplexity: 1,
-                    minDetectionConfidence: 0.6,
-                    minTrackingConfidence: 0.6
-                });
-
-                hands.onResults(onResults);
-
-                await hands.initialize();
-
-                handsRef.current = hands;
-                setIsReady(true);
-                console.log("MediaPipe Hands initialized and ready.");
-            } catch (error) {
-                console.error("Error initializing MediaPipe Hands:", error);
-            }
-        };
-
-        initHands();
-    }, []);
-
-    const onResults = (results: Results) => {
+    // Fix: Define onResults with useCallback BEFORE it is passed to hands.onResults
+    const onResults = useCallback((results: Results) => {
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
             setHandDetected(true);
             const landmarks = results.multiHandLandmarks[0];
@@ -51,8 +20,9 @@ export const useGestureDetection = () => {
             setGesture(gesture, results.multiHandedness[0].score);
         } else {
             setHandDetected(false);
+            setGesture(GestureState.SCATTERED, 0);
         }
-    };
+    }, [setGesture, setHandDetected]);
 
     const detectGesture = (landmarks: any[]): GestureState => {
         const wrist = landmarks[0];
@@ -63,8 +33,13 @@ export const useGestureDetection = () => {
         // Check each finger individually
         // -----------------------------
 
-        // Thumb (Id 4): Open if Tip (4) is further from wrist than IP joint (3)
-        const thumbOpen = dist(landmarks[4], wrist) > dist(landmarks[3], wrist);
+        // Thumb (Id 4): Open logic improved
+        // Comparison: Distance from ThumbTip(4) to IndexMCP(5) vs Palm Scale (Wrist(0) -> IndexMCP(5))
+        // If thumb is tucked, tip is close to index base. If extended, it's far.
+        const palmScale = dist(landmarks[0], landmarks[5]);
+        const thumbIndexDist = dist(landmarks[4], landmarks[5]);
+        // Threshold: 0.3 * palmScale implies thumb is somewhat extended.
+        const thumbOpen = thumbIndexDist > (palmScale * 0.4);
 
         // Index (Id 8): Open if Tip (8) is further than PIP (6)
         const indexOpen = dist(landmarks[8], wrist) > dist(landmarks[6], wrist);
@@ -82,13 +57,14 @@ export const useGestureDetection = () => {
         // -------------------------------------
 
         // 5 Fingers: All Open
-        if (thumbOpen && indexOpen && middleOpen && ringOpen && pinkyOpen) {
-            return GestureState.FIVE_FINGERS;
-        }
-
-        // 4 Fingers: Index, Middle, Ring, Pinky Open AND Thumb Closed
-        if (indexOpen && middleOpen && ringOpen && pinkyOpen && !thumbOpen) {
-            return GestureState.FOUR_FINGERS;
+        // 4 Fingers (Index...Pinky Open)
+        // If these 4 are open, it's either 4 or 5 fingers.
+        if (indexOpen && middleOpen && ringOpen && pinkyOpen) {
+            if (thumbOpen) {
+                return GestureState.FIVE_FINGERS;
+            } else {
+                return GestureState.FOUR_FINGERS;
+            }
         }
 
         // 3 Fingers: Index, Middle, Ring Open (Pinky Closed)
@@ -115,8 +91,56 @@ export const useGestureDetection = () => {
         return GestureState.SCATTERED;
     };
 
-    const processVideo = async () => {
-        if (videoRef.current && handsRef.current && isReady) {
+    useEffect(() => {
+        if (initializationRef.current) return;
+        initializationRef.current = true;
+
+        const initHands = async () => {
+            console.log("Initializing MediaPipe Hands...");
+            try {
+                const hands = new Hands({
+                    locateFile: (file) => {
+                        console.log(`Loading MediaPipe file: ${file}`);
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                    }
+                });
+
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.6,
+                    minTrackingConfidence: 0.6
+                });
+
+                // Fix: onResults is now defined above via useCallback so it's always available
+                hands.onResults(onResults);
+
+                await hands.initialize();
+
+                handsRef.current = hands;
+                setIsReady(true);
+                console.log("MediaPipe Hands initialized and ready.");
+            } catch (error) {
+                console.error("Error initializing MediaPipe Hands:", error);
+                initializationRef.current = false; // Allow retry on error
+            }
+        };
+
+        initHands();
+
+        // Cleanup function
+        return () => {
+            if (handsRef.current) {
+                handsRef.current.close();
+                handsRef.current = null;
+            }
+        };
+    }, [onResults]);
+
+    // Fix: processVideo is defined as a useCallback so it has stable identity
+    // and can properly be cancelled via the ref-tracked animation frame ID.
+    const processVideo = useCallback(async () => {
+        if (videoRef.current && handsRef.current) {
             try {
                 // react-webcam ref points to the component, which has a 'video' property
                 const webcam = videoRef.current as any;
@@ -129,16 +153,23 @@ export const useGestureDetection = () => {
                 console.error("Error in gesture detection loop:", error);
             }
         }
-        requestAnimationFrame(processVideo);
-    };
+        // Fix: Store the animation frame ID so we can cancel it on unmount
+        animationIdRef.current = requestAnimationFrame(processVideo);
+    }, []);
 
     useEffect(() => {
         if (isReady) {
             console.log("Starting gesture detection loop...");
-            const animationId = requestAnimationFrame(processVideo);
-            return () => cancelAnimationFrame(animationId);
+            animationIdRef.current = requestAnimationFrame(processVideo);
+            return () => {
+                // Fix: Cancel the stored animation frame ID to stop the loop on unmount
+                if (animationIdRef.current !== null) {
+                    cancelAnimationFrame(animationIdRef.current);
+                    animationIdRef.current = null;
+                }
+            };
         }
-    }, [isReady]);
+    }, [isReady, processVideo]);
 
     return { videoRef, isReady };
 };

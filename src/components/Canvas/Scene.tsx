@@ -36,7 +36,7 @@ export const Scene = () => {
                     />
                 </EffectComposer> */}
 
-                <OrbitControls enableZoom={false} enablePan={false} />
+                <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} />
             </Canvas>
         </div>
     );

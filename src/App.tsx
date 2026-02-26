@@ -1,6 +1,6 @@
 import { Scene } from './components/Canvas/Scene'
 import { WebcamFeed } from './components/Camera/WebcamFeed';
-import { OverlayObject } from './components/UI/OverlayObject';
+
 
 function App() {
     return (
@@ -10,7 +10,7 @@ function App() {
             {/* UI Overlay */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-8">
                 <WebcamFeed />
-                <OverlayObject />
+                {/* OverlayObject removed as text is now in particles */}
                 <header className="flex justify-between items-start">
                     <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-purple-500">
                         Valentine's Particle System
